@@ -37,3 +37,4 @@ TECHNICAL_WORKFLOW.md
 format_report.py
 docs/
 mkdocs.yml
+.env.example
