@@ -35,3 +35,5 @@ ACADEMIC_REPORT_FORMATTED.md
 IEEE_PAPER.md
 TECHNICAL_WORKFLOW.md
 format_report.py
+docs/
+mkdocs.yml
