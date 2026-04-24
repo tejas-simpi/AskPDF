@@ -1,4 +1,4 @@
-# 🤖 Study Sensei - Local RAG Application
+# 📄 AskPDF - Local RAG Application
 
 A powerful local RAG (Retrieval Augmented Generation) application that lets you chat with your PDF documents using Ollama and LangChain. Features a dual-mode interface: **Generic Chat** for direct LLM conversations and **PDF Chat** for document-based Q&A. Fully private, secure, and runs entirely on your machine.
 
@@ -13,9 +13,9 @@ ollama_pdf_rag/
 │   │   │   ├── chat.py      # Chat interface component
 │   │   │   ├── pdf_viewer.py # PDF display component
 │   │   │   └── sidebar.py   # Sidebar controls
-│   │   ├── main.py          # Main app with landing page
-│   │   ├── page1.py         # Generic Chat (direct LLM)
-│   │   ├── page2.py         # PDF Chat (RAG-based)
+│   │   ├── app.py           # Main app with landing page
+│   │   ├── generic_chat.py  # Generic Chat (direct LLM)
+│   │   ├── pdf_chat.py      # PDF Chat (RAG-based)
 │   │   └── styles.css       # Custom styling
 │   └── core/                 # Core functionality
 │       ├── chatbot.py       # Generic chatbot (no RAG)
@@ -94,6 +94,7 @@ ollama_pdf_rag/
 python run.py
 ```
 Then open your browser to `http://localhost:8501`
+
 
 **Interface Overview**:
 - **Landing Page**: Choose between Generic Chat or PDF Chat

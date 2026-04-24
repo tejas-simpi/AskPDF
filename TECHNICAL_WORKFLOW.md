@@ -689,13 +689,5 @@ pdfplumber==0.11.4               # PDF processing
 - **ChromaDB**: 0.4.22 or higher
 
 ---
-
-## License
-
-This project is open source and available under the MIT License.
-
----
-
-**Last Updated**: 2025-12-01  
-**Author**: Tony Kipkemboi  
-**Repository**: [ollama_pdf_rag](https://github.com/tonykipkemboi/ollama_pdf_rag)
+ 
+**Repository**: [ollama_pdf_rag](https://github.com/tejas-simpi/Study-Sensei)

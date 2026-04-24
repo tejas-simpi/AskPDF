@@ -34,10 +34,7 @@ def extract_model_names(models_info: Any) -> Tuple[str, ...]:
         return tuple()
 
 
-def page1():
-    st.title("🤖 Context-Free chatbot")
-    st.write("Chat with your locally downloaded LLM without any context")
-
+def generic_chat():
     # Initialize session state
     if "chatbot" not in st.session_state:
         st.session_state.chatbot = None
@@ -46,11 +43,19 @@ def page1():
     if "chatbot_model" not in st.session_state:
         st.session_state.chatbot_model = "llama3.2"
 
-    # Sidebar for settings
+    # ── Sidebar ──────────────────────────────────────────────
     with st.sidebar:
-        st.header("⚙️ Chatbot Settings")
+        # Brand
+        st.markdown("""
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-icon">📄</span>
+                <span class="sidebar-brand-text">AskPDF</span>
+            </div>
+        """, unsafe_allow_html=True)
         
-        # Get available models from Ollama
+        # Model selection section
+        st.markdown('<div class="sidebar-section-label">Model</div>', unsafe_allow_html=True)
+        
         try:
             models_info = ollama.list()
             available_models = extract_model_names(models_info)
@@ -59,7 +64,6 @@ def page1():
             available_models = ("llama3.2",)  # Fallback to default
         
         if available_models:
-            # Determine default index
             default_index = 0
             if st.session_state.chatbot_model in available_models:
                 default_index = available_models.index(st.session_state.chatbot_model)
@@ -68,7 +72,8 @@ def page1():
                 "Select Model",
                 available_models,
                 index=default_index,
-                help="Choose from locally available Ollama models"
+                help="Choose from locally available Ollama models",
+                label_visibility="collapsed"
             )
         else:
             st.warning("No Ollama models found. Please install at least one model.")
@@ -78,19 +83,25 @@ def page1():
         # Update model if changed
         if selected_model != st.session_state.chatbot_model:
             st.session_state.chatbot_model = selected_model
-            st.session_state.chatbot = None  # Reset chatbot
+            st.session_state.chatbot = None
             st.rerun()
         
-        # System prompt customization
-        st.subheader("System Prompt")
+        st.markdown('<div style="margin-top: 0.75rem"></div>', unsafe_allow_html=True)
+        
+        # System prompt section
+        st.markdown('<div class="sidebar-section-label">System Prompt</div>', unsafe_allow_html=True)
         system_prompt = st.text_area(
             "Customize the chatbot's behavior",
             value="You are a helpful AI assistant.",
             height=100,
-            help="Define how the chatbot should behave"
+            help="Define how the chatbot should behave",
+            label_visibility="collapsed"
         )
         
-        # Clear chat button
+        st.markdown('<div style="margin-top: 0.75rem"></div>', unsafe_allow_html=True)
+        
+        # Actions section
+        st.markdown('<div class="sidebar-section-label">Actions</div>', unsafe_allow_html=True)
         if st.button("🗑️ Clear Chat History", use_container_width=True):
             st.session_state.chat_history = []
             st.rerun()
@@ -106,7 +117,7 @@ def page1():
                 "without any document context (RAG)."
             )
 
-    # Initialize chatbot if needed
+    # ── Initialize Chatbot ───────────────────────────────────
     if st.session_state.chatbot is None:
         with st.spinner(f"Loading {selected_model}..."):
             try:
@@ -124,15 +135,18 @@ def page1():
         # Update system prompt if changed
         st.session_state.chatbot.update_system_prompt(system_prompt)
 
-    # Display chat history
-    st.subheader("💬 Conversation")
-    
-    # Chat container
-    chat_container = st.container(height=400, border=True)
+    # ── Chat Interface ───────────────────────────────────────
+    chat_container = st.container(height=500, border=True)
     
     with chat_container:
         if len(st.session_state.chat_history) == 0:
-            st.info("👋 Start a conversation by typing a message below!")
+            st.markdown("""
+                <div class="empty-state">
+                    <div class="empty-state-icon">💬</div>
+                    <div class="empty-state-title">Start a Conversation</div>
+                    <div class="empty-state-desc">Type a message below to begin chatting with your AI assistant</div>
+                </div>
+            """, unsafe_allow_html=True)
         else:
             for msg in st.session_state.chat_history:
                 if msg["role"] == "user":
@@ -143,9 +157,7 @@ def page1():
                         st.write(msg["content"])
 
     # Chat input
-    user_input = st.chat_input("Type your message here...", key="chat_input")
-    
-    if user_input:
+    if user_input := st.chat_input("Type your message here...", key="chat_input"):
         # Add user message to history
         st.session_state.chat_history.append({
             "role": "user",
@@ -153,20 +165,22 @@ def page1():
         })
         
         # Get chatbot response
-        with st.spinner("Thinking..."):
-            try:
-                response = st.session_state.chatbot.chat(
-                    message=user_input,
-                    chat_history=st.session_state.chat_history[:-1]  # Exclude the current message
-                )
-                
-                # Add assistant response to history
-                st.session_state.chat_history.append({
-                    "role": "assistant",
-                    "content": response
-                })
-                
-                st.rerun()
-                
-            except Exception as e:
-                st.error(f"Error getting response: {e}")
+        try:
+            response = st.session_state.chatbot.chat(
+                message=user_input,
+                chat_history=st.session_state.chat_history[:-1]
+            )
+            
+            # Add assistant response to history
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": response
+            })
+            
+        except Exception as e:
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": f"⚠️ Error: {e}"
+            })
+        
+        st.rerun()

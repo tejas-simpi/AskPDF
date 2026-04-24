@@ -17,15 +17,14 @@ from langchain_community.document_loaders import PyPDFLoader
 # Suppress torch warning
 warnings.filterwarnings('ignore', category=UserWarning, message='.*torch.classes.*')
 
-from langchain_community.document_loaders import UnstructuredPDFLoader
 from langchain_ollama import OllamaEmbeddings   
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-from langchain.prompts import ChatPromptTemplate, PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_ollama import ChatOllama
 from langchain_core.runnables import RunnablePassthrough
-from langchain.retrievers.multi_query import MultiQueryRetriever
+from langchain_classic.retrievers.multi_query import MultiQueryRetriever
 from typing import List, Tuple, Dict, Any, Optional
 
 # Set protobuf environment variable to avoid error messages
@@ -34,15 +33,6 @@ os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 # Define persistent directory for ChromaDB
 PERSIST_DIRECTORY = os.path.join("data", "vectors")
-
-# Streamlit page configuration
-# Streamlit page configuration
-# st.set_page_config(
-#     page_title="Ollama PDF RAG Streamlit UI",
-#     page_icon="🎈",
-#     layout="wide",
-#     initial_sidebar_state="collapsed",
-# )
 
 # Logging configuration
 logging.basicConfig(
@@ -287,21 +277,52 @@ def delete_vector_db(vector_db: Optional[Chroma]) -> None:
         logger.warning("Attempted to delete vector DB, but none was found")
 
 
-
-
-
-def page2() -> None:
+def pdf_chat() -> None:
     """
     Main function to run the Streamlit application.
     """
-    st.subheader("🧠 Ollama PDF RAG playground", divider="gray", anchor=False)
-
     # Get available models
     models_info = ollama.list()
     available_models = extract_model_names(models_info)
 
-    # Create layout
-    col1, col2 = st.columns([1.5, 2])
+    # ── Sidebar (Model Selection) ────────────────────────────
+    with st.sidebar:
+        st.markdown("""
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-icon">📄</span>
+                <span class="sidebar-brand-text">AskPDF</span>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown('<div class="sidebar-section-label">Model</div>', unsafe_allow_html=True)
+        
+        selected_model = None
+        if available_models:
+            selected_model = st.selectbox(
+                "Pick a model",
+                available_models,
+                key="model_select",
+                label_visibility="collapsed"
+            )
+        else:
+            st.warning("No models found. Run `ollama pull llama3.2`")
+        
+        st.divider()
+        
+        # Info section
+        st.markdown('<div class="sidebar-section-label">Info</div>', unsafe_allow_html=True)
+        with st.expander("ℹ️ About"):
+            file_count = len(st.session_state.get("file_uploads", []))
+            msg_count = len(st.session_state.get("messages", []))
+            st.info(
+                f"**Model:** {selected_model or 'None'}\n\n"
+                f"**Files:** {file_count}\n\n"
+                f"**Messages:** {msg_count}\n\n"
+                "Upload PDFs and ask questions using RAG-powered retrieval."
+            )
+
+    # ── Main Layout ──────────────────────────────────────────
+    col1, col2 = st.columns([1.2, 1.8])
 
     # Initialize session state
     if "messages" not in st.session_state:
@@ -309,131 +330,148 @@ def page2() -> None:
     if "vector_db" not in st.session_state:
         st.session_state["vector_db"] = None
 
-    # Model selection
-    if available_models:
-        selected_model = col2.selectbox(
-            "Pick a model available locally on your system ↓", 
-            available_models,
-            key="model_select"
+    # ── Left Column: PDF Upload & Viewer ─────────────────────
+    with col1:
+        # File upload supporting multiple PDFs
+        file_uploads = st.file_uploader(
+            "Upload PDF file(s)", 
+            type="pdf", 
+            accept_multiple_files=True,
+            key="pdf_uploader",
+            help="Upload one or more PDF files to chat with"
         )
 
-    # File upload supporting multiple PDFs
-    file_uploads = col1.file_uploader(
-        "Upload PDF file(s) ↓", 
-        type="pdf", 
-        accept_multiple_files=True,
-        key="pdf_uploader",
-        help="Upload one or more PDF files to chat with"
-    )
-
-    if file_uploads:
-        # Initialize processed files tracking
-        if "processed_files" not in st.session_state:
-            st.session_state["processed_files"] = set()
-        
-        # Get current file set
-        current_files = {f.name for f in file_uploads}
-        processed_files = st.session_state["processed_files"]
-        
-        # Determine new files
-        new_files = current_files - processed_files
-        removed_files = processed_files - current_files
-        
-        # Handle removed files (user deselected some files)
-        if removed_files:
-            # Complete reprocessing needed - user removed files
-            if st.session_state["vector_db"] is not None:
-                st.session_state["vector_db"].delete_collection()
-                st.session_state["vector_db"] = None
-                st.session_state.pop("pdf_pages", None)
-            st.session_state["processed_files"] = set()
-            st.session_state["file_uploads"] = []
-            new_files = current_files  # Process all current files
-        
-        # Process new files
-        if new_files:
-            new_file_objects = [f for f in file_uploads if f.name in new_files]
-            file_count = len(new_file_objects)
+        if file_uploads:
+            # Initialize processed files tracking
+            if "processed_files" not in st.session_state:
+                st.session_state["processed_files"] = set()
             
-            if st.session_state["vector_db"] is None:
-                # First upload - create new vector DB
-                with st.spinner(f"Processing {file_count} PDF file(s)..."):
-                    st.session_state["vector_db"] = create_vector_db(new_file_objects)
-                    st.session_state["processed_files"].update(new_files)
-                    st.session_state["file_uploads"] = file_uploads
-                    
-                    # Extract and store PDF pages
-                    all_pages = []
-                    for file_upload in file_uploads:
-                        with pdfplumber.open(file_upload) as pdf:
-                            all_pages.extend([page.to_image().original for page in pdf.pages])
-                    st.session_state["pdf_pages"] = all_pages
-            else:
-                # Incremental update - add new files to existing DB
-                with st.spinner(f"Adding {file_count} new PDF file(s)..."):
-                    add_files_to_vector_db(new_file_objects, st.session_state["vector_db"])
-                    st.session_state["processed_files"].update(new_files)
-                    st.session_state["file_uploads"] = file_uploads
-                    
-                    # Add new PDF pages to existing pages
-                    all_pages = st.session_state.get("pdf_pages", [])
-                    for file_upload in new_file_objects:
-                        with pdfplumber.open(file_upload) as pdf:
-                            all_pages.extend([page.to_image().original for page in pdf.pages])
-                    st.session_state["pdf_pages"] = all_pages
+            # Get current file set
+            current_files = {f.name for f in file_uploads}
+            processed_files = st.session_state["processed_files"]
             
-            st.success(f"✅ Successfully processed {file_count} new PDF file(s)!")
+            # Determine new files
+            new_files = current_files - processed_files
+            removed_files = processed_files - current_files
             
-            # Display list of uploaded files
+            # Handle removed files (user deselected some files)
+            if removed_files:
+                if st.session_state["vector_db"] is not None:
+                    st.session_state["vector_db"].delete_collection()
+                    st.session_state["vector_db"] = None
+                    st.session_state.pop("pdf_pages", None)
+                st.session_state["processed_files"] = set()
+                st.session_state["file_uploads"] = []
+                new_files = current_files
+            
+            # Process new files
+            if new_files:
+                new_file_objects = [f for f in file_uploads if f.name in new_files]
+                file_count = len(new_file_objects)
+                
+                if st.session_state["vector_db"] is None:
+                    with st.spinner(f"Processing {file_count} PDF file(s)..."):
+                        st.session_state["vector_db"] = create_vector_db(new_file_objects)
+                        st.session_state["processed_files"].update(new_files)
+                        st.session_state["file_uploads"] = file_uploads
+                        
+                        all_pages = []
+                        for file_upload in file_uploads:
+                            with pdfplumber.open(file_upload) as pdf:
+                                all_pages.extend([page.to_image().original for page in pdf.pages])
+                        st.session_state["pdf_pages"] = all_pages
+                else:
+                    with st.spinner(f"Adding {file_count} new PDF file(s)..."):
+                        add_files_to_vector_db(new_file_objects, st.session_state["vector_db"])
+                        st.session_state["processed_files"].update(new_files)
+                        st.session_state["file_uploads"] = file_uploads
+                        
+                        all_pages = st.session_state.get("pdf_pages", [])
+                        for file_upload in new_file_objects:
+                            with pdfplumber.open(file_upload) as pdf:
+                                all_pages.extend([page.to_image().original for page in pdf.pages])
+                        st.session_state["pdf_pages"] = all_pages
+                
+                st.success(f"✅ Processed {file_count} PDF file(s)")
+            
+            # Display uploaded file pills
             if "file_uploads" in st.session_state and st.session_state["file_uploads"]:
-                with col1.expander(f"📁 Uploaded Files ({len(st.session_state['file_uploads'])})", expanded=True):
-                    for idx, file in enumerate(st.session_state["file_uploads"], 1):
-                        st.text(f"{idx}. {file.name}")
+                file_pills_html = '<div class="file-pills">'
+                for f in st.session_state["file_uploads"]:
+                    file_pills_html += f'<span class="file-pill">📄 {f.name}</span>'
+                file_pills_html += '</div>'
+                st.markdown(file_pills_html, unsafe_allow_html=True)
 
-    # Display PDF if pages are available
-    if "pdf_pages" in st.session_state and st.session_state["pdf_pages"]:
-        # PDF display controls
-        zoom_level = col1.slider(
-            "Zoom Level", 
-            min_value=100, 
-            max_value=1000, 
-            value=700, 
-            step=50,
-            key="zoom_slider"
-        )
+        # Display PDF if pages are available
+        if "pdf_pages" in st.session_state and st.session_state["pdf_pages"]:
+            total_pages = len(st.session_state["pdf_pages"])
+            
+            st.markdown(f"""
+                <div class="card-header">
+                    <div class="card-header-title">📄 Document Preview</div>
+                    <div class="card-header-badge">{total_pages} page{'s' if total_pages != 1 else ''}</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            zoom_level = st.slider(
+                "Zoom Level", 
+                min_value=100, 
+                max_value=1000, 
+                value=700, 
+                step=50,
+                key="zoom_slider"
+            )
 
-        # Display PDF pages
-        with col1:
             with st.container(height=410, border=True):
                 for page_image in st.session_state["pdf_pages"]:
                     st.image(page_image, width=zoom_level)
 
-    # Delete collection button
-    delete_collection = col1.button(
-        "⚠️ Delete collection", 
-        type="secondary",
-        key="delete_button"
-    )
+        # Delete collection button
+        st.markdown('<div class="danger-btn">', unsafe_allow_html=True)
+        delete_collection = st.button(
+            "⚠️ Delete collection", 
+            type="secondary",
+            key="delete_button"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    if delete_collection:
-        delete_vector_db(st.session_state["vector_db"])
+        if delete_collection:
+            delete_vector_db(st.session_state["vector_db"])
 
-    # Chat interface
+    # ── Right Column: Chat Interface ─────────────────────────
     with col2:
-        message_container = st.container(height=500, border=True)
+        message_container = st.container(height=550, border=True)
 
         # Display chat history
-        for i, message in enumerate(st.session_state["messages"]):
-            avatar = "🤖" if message["role"] == "assistant" else "😎"
-            with message_container.chat_message(message["role"], avatar=avatar):
-                st.markdown(message["content"])
+        with message_container:
+            if not st.session_state["messages"] and st.session_state["vector_db"] is None:
+                st.markdown("""
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📄</div>
+                        <div class="empty-state-title">Upload a PDF to Begin</div>
+                        <div class="empty-state-desc">Upload one or more PDF files, then ask questions about their content</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            elif not st.session_state["messages"]:
+                st.markdown("""
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💬</div>
+                        <div class="empty-state-title">Ready to Chat</div>
+                        <div class="empty-state-desc">Your documents are loaded. Ask a question below!</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                for message in st.session_state["messages"]:
+                    avatar = "🤖" if message["role"] == "assistant" else "👤"
+                    with st.chat_message(message["role"], avatar=avatar):
+                        st.markdown(message["content"])
 
         # Chat input and processing
-        if prompt := st.chat_input("Enter a prompt here...", key="chat_input"):
+        if prompt := st.chat_input("Ask about your documents...", key="chat_input"):
             try:
                 # Add user message to chat
                 st.session_state["messages"].append({"role": "user", "content": prompt})
-                with message_container.chat_message("user", avatar="😎"):
+                with message_container.chat_message("user", avatar="👤"):
                     st.markdown(prompt)
 
                 # Process and display assistant response
@@ -456,12 +494,3 @@ def page2() -> None:
             except Exception as e:
                 st.error(e, icon="⛔️")
                 logger.error(f"Error processing prompt: {e}")
-        else:
-            if st.session_state["vector_db"] is None:
-                st.warning("Upload a PDF file or use the sample PDF to begin chat...")
-
-        # st.link_button(
-        #     "⭐️ Star on GitHub",
-        #     url="/nomic-ai/llm-playground",
-        # )
-

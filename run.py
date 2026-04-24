@@ -5,7 +5,7 @@ from pathlib import Path
 
 def main():
     """Run the Streamlit application."""
-    app_path = Path("src/app/main.py")
+    app_path = Path("src/app/app.py")
     if not app_path.exists():
         print(f"Error: Could not find {app_path}")
         sys.exit(1)
