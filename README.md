@@ -2,11 +2,9 @@
 
 A powerful local RAG (Retrieval Augmented Generation) application that lets you chat with your PDF documents using Ollama and LangChain. Features a dual-mode interface: **Generic Chat** for direct LLM conversations and **PDF Chat** for document-based Q&A. Fully private, secure, and runs entirely on your machine.
 
-[![Python Tests](https://github.com/tonykipkemboi/ollama_pdf_rag/actions/workflows/tests.yml/badge.svg)](https://github.com/tonykipkemboi/ollama_pdf_rag/actions/workflows/tests.yml)
-
 ## Project Structure
 ```
-ollama_pdf_rag/
+AskPDF/
 ├── src/                      # Source code
 │   ├── app/                  # Streamlit application
 │   │   ├── components/       # Reusable UI components
@@ -26,11 +24,8 @@ ollama_pdf_rag/
 ├── .streamlit/              # Streamlit configuration
 │   └── config.toml          # Theme and UI settings
 ├── data/                     # Data storage
-│   ├── pdfs/                # PDF storage
 │   └── vectors/             # Vector DB persistence
-├── notebooks/               # Jupyter notebooks
 ├── tests/                   # Unit tests
-├── docs/                    # Documentation
 ├── TECHNICAL_WORKFLOW.md    # Detailed technical documentation
 ├── requirements.txt         # Python dependencies
 └── run.py                   # Application runner
@@ -63,13 +58,7 @@ ollama_pdf_rag/
      ollama pull nomic-embed-text
      ```
 
-2. **Clone Repository**
-   ```bash
-   git clone https://github.com/tonykipkemboi/ollama_pdf_rag.git
-   cd ollama_pdf_rag
-   ```
-
-3. **Set Up Environment**
+2. **Set Up Environment**
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: .\venv\Scripts\activate
@@ -89,23 +78,15 @@ ollama_pdf_rag/
 
 ### 🎮 Running the Application
 
-#### Option 1: Streamlit Interface
 ```bash
 python run.py
 ```
 Then open your browser to `http://localhost:8501`
 
-
 **Interface Overview**:
 - **Landing Page**: Choose between Generic Chat or PDF Chat
 - **Generic Chat**: Talk directly with Ollama models, customize system prompts
 - **PDF Chat**: Upload PDFs and ask questions based on document content
-
-#### Option 2: Jupyter Notebook
-```bash
-jupyter notebook
-```
-Open `updated_rag_notebook.ipynb` to experiment with the code
 
 ## 💡 Usage Tips
 
@@ -141,10 +122,8 @@ For detailed technical information, see [TECHNICAL_WORKFLOW.md](TECHNICAL_WORKFL
 ## ⚠️ Troubleshooting
 
 - Ensure Ollama is running in the background
-- Check that required models are downloaded
+- Check that required models are downloaded (`ollama list` to verify)
 - Verify Python environment is activated
-- For Windows users, ensure WSL2 is properly configured if using Ollama
-
 
 #### CPU-Only Systems
 If you're running on a CPU-only system:
@@ -166,31 +145,11 @@ Note: The application will run slower on CPU-only systems, but it will still wor
 ### Running Tests
 ```bash
 # Run all tests
-python -m unittest discover tests
+python -m pytest tests/
 
 # Run tests verbosely
-python -m unittest discover tests -v
+python -m pytest tests/ -v
 ```
-
-### Pre-commit Hooks
-The project uses pre-commit hooks to ensure code quality. To set up:
-
-```bash
-pip install pre-commit
-pre-commit install
-```
-
-This will:
-- Run tests before each commit
-- Run linting checks
-- Ensure code quality standards are met
-
-### Continuous Integration
-The project uses GitHub Actions for CI. On every push and pull request:
-- Tests are run on multiple Python versions (3.9, 3.10, 3.11)
-- Dependencies are installed
-- Ollama models are pulled
-- Test results are uploaded as artifacts
 
 ---
 
