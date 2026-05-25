@@ -102,7 +102,7 @@ def create_vector_db(file_uploads) -> Chroma:
             logger.info(f"Loaded {len(data)} pages from {file_upload.name}")
         
         # Split all documents into chunks
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=7500, chunk_overlap=100)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=6000, chunk_overlap=500)
         chunks = text_splitter.split_documents(all_data)
         logger.info(f"Total {len(all_data)} pages split into {len(chunks)} chunks")
         
@@ -159,7 +159,7 @@ def add_files_to_vector_db(file_uploads, vector_db: Chroma) -> None:
             logger.info(f"Loaded {len(data)} pages from {file_upload.name}")
         
         # Split documents into chunks
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=7500, chunk_overlap=100)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=6000, chunk_overlap=500)
         chunks = text_splitter.split_documents(all_data)
         logger.info(f"Total {len(all_data)} pages split into {len(chunks)} chunks")
         
@@ -171,6 +171,18 @@ def add_files_to_vector_db(file_uploads, vector_db: Chroma) -> None:
         # Always clean up temp directory
         shutil.rmtree(temp_dir)
         logger.info(f"Temporary directory {temp_dir} removed")
+
+
+def format_docs(docs):
+    """Format retrieved documents into clean text with deduplication."""
+    seen = set()
+    parts = []
+    for doc in docs:
+        if doc.page_content not in seen:
+            seen.add(doc.page_content)
+            parts.append(doc.page_content)
+    logger.info(f"Formatted {len(parts)} unique chunks from {len(docs)} retrieved documents")
+    return "\n\n---\n\n".join(parts)
 
 
 def process_question(question: str, vector_db: Chroma, selected_model: str) -> str:
@@ -187,38 +199,61 @@ def process_question(question: str, vector_db: Chroma, selected_model: str) -> s
     """
     logger.info(f"Processing question: {question} using model: {selected_model}")
     
-    # Initialize LLM
-    llm = ChatOllama(model=selected_model)
+    # Initialize LLM with temperature=0 for deterministic, grounded responses
+    llm = ChatOllama(model=selected_model, temperature=0, num_predict=8192)
     
     # Query prompt template
     QUERY_PROMPT = PromptTemplate(
         input_variables=["question"],
-        template="""You are an AI language model assistant. Your task is to generate 2
-        different versions of the given user question to retrieve relevant documents from
-        a vector database. By generating multiple perspectives on the user question, your
-        goal is to help the user overcome some of the limitations of the distance-based
-        similarity search. Provide these alternative questions separated by newlines.
-        Original question: {question}""",
+        template="""You are a search query optimization assistant. Your task is to generate 2 alternative versions of the given user question to improve document retrieval from a vector database.
+
+For each alternative:
+- Rephrase using synonyms, broader terms, or more specific terminology
+- Consider both conceptual phrasings (why/how) and factual phrasings (what/when/where)
+- Approach the question from a different angle or perspective
+- Keep each alternative focused and directly relevant to the original intent — do not make them generic
+
+Provide ONLY the 2 alternative questions, each on its own line. Do not number them or add any other text.
+
+Original question: {question}""",
     )
 
     # Set up retriever
     retriever = MultiQueryRetriever.from_llm(
-        vector_db.as_retriever(), 
+        vector_db.as_retriever(search_kwargs={"k": 8}), 
         llm,
         prompt=QUERY_PROMPT
     )
 
     # RAG prompt template
-    template = """Answer the question based ONLY on the following context:
-    {context}
-    Question: {question}
-    """
+    template = """You are answering questions strictly from the context provided below. You must ONLY use information found in the context. Do NOT use your own knowledge, training data, or any outside information under any circumstances.
+
+If the question CANNOT be answered using the context below, you MUST respond ONLY with: "I couldn't find that in the document." Do not attempt to answer, guess, or provide general knowledge.
+
+Rules:
+- NEVER answer from your own knowledge. If the context does not contain the answer, refuse.
+- Never mention the context, document, source, or provided text. Just state the information directly.
+- Never add closing statements like "I have covered all points" or similar.
+
+Response style:
+- COMPLETENESS IS THE TOP PRIORITY. Cover ALL categories, types, and points present in the context before adding detail to any single one.
+- Distribute detail evenly across all points — do not over-expand early points at the expense of later ones.
+- Include definitions, sub-types, and examples for each point but keep them concise.
+- Use numbered lists for main categories and bullet points for sub-details.
+- Use proper line breaks and clean formatting.
+- When explaining structures, layers, flows, or hierarchies, use ASCII box-drawing diagrams (─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼ ║ ═ ╔ ╗ ╚ ╝).
+
+Context:
+{context}
+
+Question: {question}
+"""
 
     prompt = ChatPromptTemplate.from_template(template)
 
     # Create chain
     chain = (
-        {"context": retriever, "question": RunnablePassthrough()}
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
         | prompt
         | llm
         | StrOutputParser()

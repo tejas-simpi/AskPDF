@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 class DocumentProcessor:
     """Handles PDF document loading and processing."""
     
-    def __init__(self, chunk_size: int = 7500, chunk_overlap: int = 100):
+    def __init__(self, chunk_size: int = 6000, chunk_overlap: int = 500):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.splitter = RecursiveCharacterTextSplitter(

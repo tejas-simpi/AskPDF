@@ -1,12 +1,25 @@
 """RAG pipeline implementation."""
 import logging
-from typing import Any, Dict
-from langchain_core.runnables import RunnablePassthrough
+from typing import Any, Dict, List
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 from langchain.retrievers.multi_query import MultiQueryRetriever
 from .llm import LLMManager
 
 logger = logging.getLogger(__name__)
+
+
+def format_docs(docs: List) -> str:
+    """Format retrieved documents into clean text with deduplication."""
+    seen = set()
+    parts = []
+    for doc in docs:
+        if doc.page_content not in seen:
+            seen.add(doc.page_content)
+            parts.append(doc.page_content)
+    logger.info(f"Formatted {len(parts)} unique chunks from {len(docs)} retrieved documents")
+    return "\n\n---\n\n".join(parts)
+
 
 class RAGPipeline:
     """Manages the RAG (Retrieval Augmented Generation) pipeline."""
@@ -21,7 +34,7 @@ class RAGPipeline:
         """Set up the multi-query retriever."""
         try:
             return MultiQueryRetriever.from_llm(
-                retriever=self.vector_db.as_retriever(),
+                retriever=self.vector_db.as_retriever(search_kwargs={"k": 8}),
                 llm=self.llm_manager.llm,
                 prompt=self.llm_manager.get_query_prompt()
             )
@@ -33,7 +46,7 @@ class RAGPipeline:
         """Set up the RAG chain."""
         try:
             return (
-                {"context": self.retriever, "question": RunnablePassthrough()}
+                {"context": self.retriever | format_docs, "question": RunnablePassthrough()}
                 | self.llm_manager.get_rag_prompt()
                 | self.llm_manager.llm
                 | StrOutputParser()
