@@ -1,0 +1,113 @@
+.feature-card {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: 2rem 1.75rem 1.75rem;
+  width: 300px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.35s var(--ease-out);
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  color: inherit;
+  animation: fadeInUp 0.6s var(--ease-out) both;
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent-gradient);
+  opacity: 0;
+  transition: opacity 0.35s var(--ease-out);
+}
+
+.feature-card:hover {
+  border-color: var(--border-accent);
+  transform: translateY(-6px);
+  box-shadow: var(--glow-accent), var(--shadow-lg);
+}
+
+.feature-card:hover::before {
+  opacity: 1;
+}
+
+.feature-card:active {
+  transform: translateY(-2px) scale(0.98);
+}
+
+.feature-card-glow {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle at center,
+    rgba(168, 85, 247, 0.06) 0%,
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 0.5s var(--ease-out);
+  pointer-events: none;
+}
+
+.feature-card:hover .feature-card-glow {
+  opacity: 1;
+}
+
+.feature-card-content {
+  position: relative;
+  z-index: 1;
+}
+
+.feature-card-icon {
+  display: block;
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  transition: transform 0.3s var(--ease-spring);
+}
+
+.feature-card:hover .feature-card-icon {
+  transform: scale(1.15);
+}
+
+.feature-card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.01em;
+}
+
+.feature-card-desc {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.feature-card-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-default);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  transition: all 0.3s var(--ease-out);
+}
+
+.feature-card:hover .feature-card-arrow {
+  background: var(--accent-gradient);
+  border-color: transparent;
+  color: white;
+  transform: translateX(4px);
+}

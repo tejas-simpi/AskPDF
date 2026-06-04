@@ -1,0 +1,98 @@
+.pdf-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pdf-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pdf-viewer-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.pdf-viewer-badge {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--accent-primary);
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+}
+
+.pdf-viewer-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pdf-zoom-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pdf-zoom-slider {
+  flex: 1;
+  height: 4px;
+  appearance: none;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  outline: none;
+  cursor: pointer;
+}
+
+.pdf-zoom-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  cursor: pointer;
+  box-shadow: var(--glow-purple);
+  transition: transform 0.15s ease;
+}
+
+.pdf-zoom-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.pdf-zoom-value {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  min-width: 3rem;
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.pdf-pages-container {
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pdf-page-image {
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  max-width: 100%;
+  transition: width 0.2s var(--ease-out);
+}
